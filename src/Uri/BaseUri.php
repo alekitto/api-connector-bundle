@@ -3,6 +3,13 @@ namespace Kcs\ApiConnectorBundle\Uri;
 
 use Psr\Http\Message\UriInterface;
 
+/**
+ * PSR-7 Base URI implementation.
+ * This class will ignore query and fragment parts of the URI
+ *
+ * @link https://github.com/phly/http This class is based upon
+ *     Matthew Weier O'Phinney's URI implementation in phly/http.
+ */
 class BaseUri implements UriInterface
 {
     private static $schemes = [
@@ -10,8 +17,9 @@ class BaseUri implements UriInterface
         'https' => 443,
     ];
 
-    private static $charUnreserved = 'a-zA-Z0-9_\-\.~';
-    private static $charSubDelims = '!\$&\'\(\)\*\+,;=';
+    protected static $charUnreserved = 'a-zA-Z0-9_\-\.~';
+    protected static $charSubDelims = '!\$&\'\(\)\*\+,;=';
+    protected static $replaceQuery = ['=' => '%3D', '&' => '%26'];
 
     /** @var string Uri scheme. */
     private $scheme = '';
@@ -45,11 +53,11 @@ class BaseUri implements UriInterface
     public function __toString()
     {
         return self::createUriString(
-            $this->scheme,
+            $this->getScheme(),
             $this->getAuthority(),
             $this->getPath(),
-            null,
-            null
+            $this->getQuery(),
+            $this->getFragment()
         );
     }
 
@@ -153,7 +161,7 @@ class BaseUri implements UriInterface
             $parts['fragment'] = $relParts['fragment'];
         }
 
-        return new self(static::createUriString(
+        return new Uri(static::createUriString(
             $parts['scheme'],
             $parts['authority'],
             $parts['path'],
@@ -303,7 +311,7 @@ class BaseUri implements UriInterface
      *
      * @param array $parts Array of parse_url parts to apply.
      */
-    private function applyParts(array $parts)
+    protected function applyParts(array $parts)
     {
         $this->scheme = isset($parts['scheme'])
             ? $this->filterScheme($parts['scheme'])
