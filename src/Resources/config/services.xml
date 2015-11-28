@@ -1,0 +1,26 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <parameters>
+        <parameter key="kcs.api_connector.authentication_listener.class">Kcs\ApiConnectorBundle\EventListener\AuthenticationListener</parameter>
+        <parameter key="kcs.api_connector.request_manager.class">Kcs\ApiConnectorBundle\Manager\ApiRequestManager</parameter>
+    </parameters>
+
+    <services>
+        <service id="kcs.api_connector.authentication_listener" class="%kcs.api_connector.authentication_listener.class%">
+            <tag name="kernel.event_subscriber" />
+        </service>
+
+        <service id="kcs.api_connector.guzzle_transport" class="Kcs\ApiConnectorBundle\Transport\GuzzleTransport">
+        </service>
+
+        <service id="kcs.api_connector.request_manager.abstract" class="%kcs.api_connector.request_manager.class%" abstract="true">
+            <argument />
+            <argument type="service" id="event_dispatcher" />
+            <argument />
+        </service>
+    </services>
+</container>

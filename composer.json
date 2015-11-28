@@ -1,0 +1,24 @@
+{
+    "name": "kcs/api-connector-bundle",
+    "description": "A connector bundle for API requests",
+    "require": {
+        "php": ">= 5.4",
+        "kcs/utils": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^4.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kcs\\ApiConnectorBundle\\": "src/"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alessandro Chitolina",
+            "email": "alekitto@gmail.com"
+        }
+    ]
+}
+
