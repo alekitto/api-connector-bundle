@@ -2,8 +2,6 @@
 
 namespace Kcs\ApiConnectorBundle\DependencyInjection;
 
-use Kcs\ApiConnectorBundle\Authentication\AnonymousAuthenticator;
-use Kcs\ApiConnectorBundle\Authentication\AuthenticatorInterface;
 use Kcs\ApiConnectorBundle\Transport\TransportInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;

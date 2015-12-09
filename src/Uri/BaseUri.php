@@ -41,7 +41,7 @@ class BaseUri implements UriInterface
      */
     public function __construct($uri = '')
     {
-        if ($uri != null) {
+        if ($uri) {
             $parts = parse_url($uri);
             if ($parts === false) {
                 throw new \InvalidArgumentException("Unable to parse URI: $uri");
@@ -157,7 +157,7 @@ class BaseUri implements UriInterface
             }
         } elseif (!empty($relParts['query'])) {
             $parts['query'] = $relParts['query'];
-        } elseif ($relParts['fragment'] != null) {
+        } elseif ($relParts['fragment']) {
             $parts['fragment'] = $relParts['fragment'];
         }
 
@@ -210,7 +210,7 @@ class BaseUri implements UriInterface
 
     public function getPath()
     {
-        return $this->path == null ? '' : $this->path;
+        return $this->path ? '' : $this->path;
     }
 
     public function getQuery()
@@ -351,7 +351,7 @@ class BaseUri implements UriInterface
             $uri .= $authority;
         }
 
-        if ($path != null) {
+        if ($path) {
             // Add a leading slash if necessary.
             if ($uri && substr($path, 0, 1) !== '/') {
                 $uri .= '/';
@@ -359,11 +359,11 @@ class BaseUri implements UriInterface
             $uri .= $path;
         }
 
-        if ($query != null) {
+        if ($query) {
             $uri .= '?' . $query;
         }
 
-        if ($fragment != null) {
+        if ($fragment) {
             $uri .= '#' . $fragment;
         }
 

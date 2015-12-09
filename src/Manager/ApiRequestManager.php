@@ -13,7 +13,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ApiRequestManager
@@ -37,11 +36,6 @@ class ApiRequestManager
      * @var UriInterface
      */
     private $baseUri;
-
-    /**
-     * @var array
-     */
-    private $requestMap = [];
 
     /**
      * @var OptionsResolver
