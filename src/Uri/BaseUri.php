@@ -210,7 +210,7 @@ class BaseUri implements UriInterface
 
     public function getPath()
     {
-        return $this->path ? '' : $this->path;
+        return ! $this->path ? '' : $this->path;
     }
 
     public function getQuery()
