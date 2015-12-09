@@ -3,10 +3,14 @@
     "description": "A connector bundle for API requests",
     "require": {
         "php": ">= 5.4",
+        "psr/http-message": "^1.0",
+        "symfony/event-dispatcher": ">=2.3",
+        "symfony/options-resolver": ">=2.3",
         "kcs/utils": "*"
     },
     "require-dev": {
-        "phpunit/phpunit": "^4.8"
+        "phpunit/phpunit": "^4.8",
+        "guzzlehttp/psr7": "^1.1.0"
     },
     "autoload": {
         "psr-4": {
