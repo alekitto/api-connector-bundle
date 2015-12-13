@@ -83,6 +83,10 @@ class ApiRequestManager
     public function performMultiple($requests, array $options = [])
     {
         foreach ($requests as $key => &$request) {
+            if (!isset($options[$key])) {
+                $options[$key] = [];
+            }
+
             $request = $this->preRequest($request, $options[$key]);
         }
 
@@ -98,6 +102,10 @@ class ApiRequestManager
             if (! $this->isResponseOK($response)) {
                 $naReq = $this->getNextRequest($event, $options[$key]);
                 $nextAttemptRequests[$key] = $naReq;
+
+                if (! $naReq && $options[$key]['exceptions']) {
+                    throw new BadApiResponseException($response, $response->getStatusCode(), $response->getReasonPhrase());
+                }
             }
         }
 
