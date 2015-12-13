@@ -57,6 +57,37 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $this->manager->performRequest($request->reveal());
     }
 
+    public function testPerformRequestRetriesCorrectTimesOnFailure()
+    {
+        $request = $this->prophesize(RequestInterface::class);
+        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $failureResponse = $this->prophesize(ResponseInterface::class);
+        $failureResponse->getStatusCode()->willReturn(409);
+
+        $this->transport->exec($request->reveal())
+            ->shouldBeCalledTimes(5)
+            ->willReturn($failureResponse, $failureResponse, $failureResponse, $failureResponse, $this->successResponse);
+
+        $this->manager->performRequest($request->reveal(), ['max_retries' => 5]);
+    }
+
+    /**
+     * @expectedException \Kcs\ApiConnectorBundle\Exception\BadApiResponseException
+     */
+    public function testPerformRequestThrowsExceptionsByDefaultOnFailure()
+    {
+        $request = $this->prophesize(RequestInterface::class);
+        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $failureResponse = $this->prophesize(ResponseInterface::class);
+        $failureResponse->getStatusCode()->willReturn(409);
+        $failureResponse->getReasonPhrase()->willReturn("Conflict");
+
+        $this->transport->exec($request->reveal())
+            ->willReturn($failureResponse, $failureResponse, $failureResponse);
+
+        $this->manager->performRequest($request->reveal());
+    }
+
     public function testPerformRequestDispatchPreRequestEvent()
     {
         $this->eventDispatcher->dispatch('kcs.api.pre_request', Argument::type(PreRequestEvent::class))
@@ -130,6 +161,39 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
             ->will(function($arguments) use ($successRequest) {
                 $event = $arguments[1];
                 $event->setNextAttemptRequest($successRequest);
+            });
+
+        $failureResponse = $this->prophesize(ResponseInterface::class);
+        $failureResponse->getStatusCode()->willReturn(409);
+
+        $request = $this->prophesize(RequestInterface::class);
+        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $this->transport->exec($request)
+            ->willReturn($failureResponse->reveal());
+        $this->transport->exec($successRequest)
+            ->willReturn($this->successResponse->reveal());
+
+        $response = $this->manager->performRequest($request->reveal());
+        $this->assertSame($this->successResponse->reveal(), $response);
+    }
+
+    public function testRequestChangedInResponseEventResetsRetriesCount()
+    {
+        $that = $this;
+        $successRequest = $this->prophesize(RequestInterface::class);
+        $successRequest->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $successRequest = $successRequest->reveal();
+        $this->eventDispatcher->dispatch('kcs.api.response', Argument::type(ResponseEvent::class))
+            ->will(function($arguments) use ($successRequest) {
+                $event = $arguments[1];
+                $event->setNextAttemptRequest($successRequest);
+            });
+        $this->eventDispatcher->dispatch('kcs.api.pre_request', Argument::type(PreRequestEvent::class))
+            ->will(function($arguments) use ($that) {
+                $event = $arguments[1];
+                $opts = $event->getOptions();
+
+                $that->assertEquals(0, $opts['retries']);
             });
 
         $failureResponse = $this->prophesize(ResponseInterface::class);

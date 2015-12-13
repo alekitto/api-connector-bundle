@@ -64,38 +64,10 @@ class ApiRequestManager
 
     public function performRequest(RequestInterface $request, array $options = [])
     {
-        $options = $this->optionsResolver->resolve(array_merge([
-            'authenticator' => $this->defaultAuthenticator,
-            'base_uri' => $this->baseUri
-        ], $options));
+        $request = $this->preRequest($request, $options);
+        $response = $this->onResponse($request, $this->transport->exec($request), $options);
 
-        $request = $this->filterRequest($request, $options);
-
-        $event = new PreRequestEvent($this, $request, $options);
-        $this->eventDispatcher->dispatch('kcs.api.pre_request', $event);
-        $options = $event->getOptions();
-
-        $request = $event->getRequest();
-        $attempt = ++$options['retries'];
-
-        $event = new ResponseEvent($this, $request, $this->transport->exec($request), $options);
-        $this->eventDispatcher->dispatch('kcs.api.response', $event);
-        $options = $event->getOptions();
-
-        $response = $event->getResponse();
-        if (
-            ($naReq = $event->getNextAttemptRequest()) &&
-            !$this->isResponseOK($response) && $attempt < 3
-        ) {
-            $opts = $options;
-            if ($naReq !== $request) {
-                $opts['retries'] = 0;
-            }
-
-            $response = $this->performRequest($naReq, $opts);
-        }
-
-        if ($options['exceptions'] && !$this->isResponseOK($response)) {
+        if ($options['exceptions'] && ! $this->isResponseOK($response)) {
             throw new BadApiResponseException($response, $response->getStatusCode(), $response->getReasonPhrase());
         }
 
@@ -111,18 +83,7 @@ class ApiRequestManager
     public function performMultiple($requests, array $options = [])
     {
         foreach ($requests as $key => &$request) {
-            $opts = $this->optionsResolver->resolve(array_merge([
-                'authenticator' => $this->defaultAuthenticator,
-                'base_uri' => $this->baseUri
-            ], isset($options[$key]) ? $options[$key] : []));
-
-            $request = $this->filterRequest($request, $opts);
-            $event = new PreRequestEvent($this, $request, $opts);
-            $this->eventDispatcher->dispatch('kcs.api.pre_request', $event);
-            $request = $event->getRequest();
-
-            $options[$key] = $event->getOptions();
-            $options[$key]['retries']++;
+            $request = $this->preRequest($request, $options[$key]);
         }
 
         $responses = $this->transport->execMultiple($requests);
@@ -131,24 +92,16 @@ class ApiRequestManager
         foreach ($responses as $key => &$response) {
             $request = $requests[$key];
 
-            $event = new ResponseEvent($this, $request, $response, $options[$key]);
-            $this->eventDispatcher->dispatch('kcs.api.response', $event);
-            $options[$key] = $event->getOptions();
-
-            $attempt = $options[$key]['retries'];
+            $event = $this->responseEvent($request, $response, $options[$key]);
             $response = $event->getResponse();
-            if (
-                ($naReq = $event->getNextAttemptRequest()) &&
-                !$this->isResponseOK($response) && $attempt < 3
-            ) {
-                if ($naReq !== $request) {
-                    $options[$key]['retries'] = 0;
-                }
 
+            if (! $this->isResponseOK($response)) {
+                $naReq = $this->getNextRequest($event, $options[$key]);
                 $nextAttemptRequests[$key] = $naReq;
             }
         }
 
+        $nextAttemptRequests = array_filter($nextAttemptRequests);
         if ($nextAttemptRequests) {
             $responses = $this->performMultiple($nextAttemptRequests, $options) + $responses;
         }
@@ -156,9 +109,6 @@ class ApiRequestManager
         return $responses;
     }
 
-    /**
-     * @param string $defaultAuthenticator
-     */
     public function setDefaultAuthenticator($defaultAuthenticator)
     {
         if (is_string($defaultAuthenticator)) {
@@ -179,7 +129,8 @@ class ApiRequestManager
             'anonymous'         => false,
             'retries'           => 0,
             'tag'               => null,
-            'exceptions'        => true
+            'exceptions'        => true,
+            'max_retries'       => 3
         ]);
         $resolver->setDefined('authenticator');
         $resolver->setDefined('base_uri');
@@ -189,6 +140,7 @@ class ApiRequestManager
         $resolver->setAllowedTypes('anonymous', 'bool');
         $resolver->setAllowedTypes('exceptions', 'bool');
         $resolver->setAllowedTypes('retries', 'int');
+        $resolver->setAllowedTypes('max_retries', 'int');
     }
 
     private function filterRequest(RequestInterface $request, array $options)
@@ -208,5 +160,66 @@ class ApiRequestManager
     private function isResponseOK(ResponseInterface $response)
     {
         return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
+    }
+
+    private function preRequest(RequestInterface $request, array &$options)
+    {
+        $options = $this->optionsResolver->resolve(array_merge([
+            'authenticator' => $this->defaultAuthenticator,
+            'base_uri' => $this->baseUri
+        ], $options));
+
+        $request = $this->filterRequest($request, $options);
+
+        $event = new PreRequestEvent($this, $request, $options);
+        $this->eventDispatcher->dispatch('kcs.api.pre_request', $event);
+        $options = $event->getOptions();
+
+        $request = $event->getRequest();
+        ++$options['retries'];
+        return $request;
+    }
+
+    private function getNextRequest(ResponseEvent $event, array &$options)
+    {
+        $req = $event->getNextAttemptRequest();
+        if ($options['retries'] >= $options['max_retries']) {
+            return null;
+        }
+
+        if ($event->getRequest() !== $req) {
+            $options['retries'] = 0;
+        }
+
+        return $req;
+    }
+
+    private function responseEvent(RequestInterface $request, ResponseInterface $response, array &$options)
+    {
+        $event = new ResponseEvent($this, $request, $response, $options);
+        $this->eventDispatcher->dispatch('kcs.api.response', $event);
+        $options = $event->getOptions();
+
+        return $event;
+    }
+
+    private function onResponse(RequestInterface $request, ResponseInterface $response, array &$options)
+    {
+        $event = $this->responseEvent($request, $response, $options);
+        $response = $event->getResponse();
+
+        if (! $this->isResponseOK($response)) {
+            // options is passed by reference. Use array_merge to ensure
+            // opts is a copy and not a reference
+            $opts = array_merge([], $options);
+            $naReq = $this->getNextRequest($event, $opts);
+
+            if ($naReq) {
+                $options['exceptions'] = false;
+                $response = $this->performRequest($naReq, $opts);
+            }
+        }
+
+        return $response;
     }
 }
