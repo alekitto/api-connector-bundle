@@ -280,4 +280,52 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $this->manager->performRequest($request->reveal(), ['tag' => 'example_val']);
     }
+
+    public function testPerformMultipleShouldReturnResponsesInOrder()
+    {
+        $requests = [];
+        $responses = [];
+        for ($i = 0; $i < 5; $i++) {
+            $request = $this->prophesize(RequestInterface::class);
+            $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+
+            $successResponse = $this->prophesize(ResponseInterface::class);
+            $successResponse->getStatusCode()->willReturn(200);
+
+            $requests['a_' . $i] = $request->reveal();
+            $responses['a_' . $i] = $successResponse->reveal();
+        }
+
+        $this->transport->execMultiple($requests)->willReturn($responses);
+
+        $resps = $this->manager->performMultiple($requests);
+        $this->assertEquals(array_keys($responses), array_keys($resps));
+    }
+
+    public function testPerformMultipleShouldRetryOnlyFailedRequests()
+    {
+        $requests = [];
+        $responses = [];
+        for ($i = 0; $i < 5; $i++) {
+            $request = $this->prophesize(RequestInterface::class);
+            $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+
+            $response = $this->prophesize(ResponseInterface::class);
+            $response->getStatusCode()->willReturn($i == 3 ? 400 : 200);
+
+            $requests['a_' . $i] = $request->reveal();
+            $responses['a_' . $i] = $response->reveal();
+        }
+
+        $this->transport->execMultiple($requests)->willReturn($responses);
+
+        $request = $this->prophesize(RequestInterface::class);
+        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $this->transport->execMultiple(Argument::that(function($arg) { return array_keys($arg) === ['a_3']; }))
+            ->shouldBeCalledTimes(1)
+            ->willReturn(['a_3' => $this->successResponse->reveal()]);
+
+        $resps = $this->manager->performMultiple($requests);
+        $this->assertEquals(array_keys($responses), array_keys($resps));
+    }
 }

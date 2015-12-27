@@ -111,7 +111,9 @@ class ApiRequestManager
 
         $nextAttemptRequests = array_filter($nextAttemptRequests);
         if ($nextAttemptRequests) {
-            $responses = $this->performMultiple($nextAttemptRequests, $options) + $responses;
+            foreach ($this->performMultiple($nextAttemptRequests, $options) as $key => $response) {
+                $responses[$key] = $response;
+            };
         }
 
         return $responses;
@@ -170,12 +172,12 @@ class ApiRequestManager
         return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
     }
 
-    private function preRequest(RequestInterface $request, array &$options)
+    private function preRequest(RequestInterface $request, array &$options = null)
     {
         $options = $this->optionsResolver->resolve(array_merge([
             'authenticator' => $this->defaultAuthenticator,
             'base_uri' => $this->baseUri
-        ], $options));
+        ], $options ?: []));
 
         $request = $this->filterRequest($request, $options);
 
