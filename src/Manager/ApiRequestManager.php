@@ -142,15 +142,34 @@ class ApiRequestManager
             'exceptions'        => true,
             'max_retries'       => 3
         ]);
-        $resolver->setDefined('authenticator');
-        $resolver->setDefined('base_uri');
 
-        $resolver->setAllowedTypes('authenticator', AuthenticatorInterface::class);
-        $resolver->setAllowedTypes('base_uri', UriInterface::class);
-        $resolver->setAllowedTypes('anonymous', 'bool');
-        $resolver->setAllowedTypes('exceptions', 'bool');
-        $resolver->setAllowedTypes('retries', 'int');
-        $resolver->setAllowedTypes('max_retries', 'int');
+        if (method_exists($resolver, 'setDefined')) {
+            $resolver->setDefined('authenticator');
+            $resolver->setDefined('base_uri');
+
+            $resolver->setAllowedTypes('authenticator', AuthenticatorInterface::class);
+            $resolver->setAllowedTypes('base_uri', UriInterface::class);
+            $resolver->setAllowedTypes('anonymous', 'bool');
+            $resolver->setAllowedTypes('exceptions', 'bool');
+            $resolver->setAllowedTypes('retries', 'int');
+            $resolver->setAllowedTypes('max_retries', 'int');
+        } else {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $resolver->setOptional([
+                'authenticator',
+                'base_uri'
+            ]);
+
+            /** @noinspection PhpParamsInspection */
+            $resolver->setAllowedTypes([
+                'authenticator' => AuthenticatorInterface::class,
+                'base_uri' => UriInterface::class,
+                'anonymous' => 'bool',
+                'exceptions' => 'bool',
+                'retries' => 'int',
+                'max_retries' => 'int'
+            ]);
+        }
     }
 
     private function filterRequest(RequestInterface $request, array $options)
