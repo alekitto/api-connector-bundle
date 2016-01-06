@@ -29,6 +29,8 @@ class GuzzleTransport implements TransportInterface
      */
     public function execMultiple($requests)
     {
+        ksort($requests);
+
         return array_combine(
             array_keys($requests),
             Pool::batch($this->client, $requests, ['concurrency' => 2])
