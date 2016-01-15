@@ -221,6 +221,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
             ['http://api.example.com/collection/resource', 'http://api.example.com', 'collection/resource'],
             ['http://user:passwd@api.example.com/coll/res', 'http://user:passwd@api.example.com/', '/coll/res'],
             ['http://user@api.example.com/test', 'http://user@api.example.com/', '/test'],
+            ['http://api.example.com:8000/test', 'http://api.example.com:8000/', '/test'],
         ];
     }
 

@@ -12,7 +12,7 @@ use Psr\Http\Message\UriInterface;
  */
 class BaseUri implements UriInterface
 {
-    private static $schemes = [
+    protected static $schemes = [
         'http'  => 80,
         'https' => 443,
     ];
