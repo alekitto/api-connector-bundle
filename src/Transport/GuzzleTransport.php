@@ -8,6 +8,11 @@ use Psr\Http\Message\RequestInterface;
 
 class GuzzleTransport implements TransportInterface
 {
+    /**
+     * @var Client
+     */
+    private $client;
+
     public function __construct()
     {
         $this->client = new Client([
@@ -21,7 +26,7 @@ class GuzzleTransport implements TransportInterface
      */
     public function exec(RequestInterface $request)
     {
-        return $this->client->send($request);
+        return $this->client->sendAsync($request);
     }
 
     /**

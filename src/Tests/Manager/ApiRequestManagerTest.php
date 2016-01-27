@@ -2,6 +2,7 @@
 
 namespace Kcs\ApiConnectorBundle\Tests\Manager;
 
+use GuzzleHttp\Promise\FulfilledPromise;
 use Kcs\ApiConnectorBundle\Event\PreRequestEvent;
 use Kcs\ApiConnectorBundle\Event\ResponseEvent;
 use Kcs\ApiConnectorBundle\Manager\ApiRequestManager;
@@ -36,7 +37,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         /** @var RequestInterface $request */
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
-        $this->transport->exec($request)->willReturn($this->successResponse);
+        $this->transport->exec($request)->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $response = $this->manager->performRequest($request->reveal());
 
@@ -52,7 +53,11 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $this->transport->exec($request->reveal())
             ->shouldBeCalledTimes(3)
-            ->willReturn($failureResponse, $failureResponse, $this->successResponse);
+            ->willReturn(
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($this->successResponse->reveal())
+            );
 
         $this->manager->performRequest($request->reveal());
     }
@@ -66,7 +71,13 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $this->transport->exec($request->reveal())
             ->shouldBeCalledTimes(5)
-            ->willReturn($failureResponse, $failureResponse, $failureResponse, $failureResponse, $this->successResponse);
+            ->willReturn(
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($this->successResponse->reveal())
+            );
 
         $this->manager->performRequest($request->reveal(), ['max_retries' => 5]);
     }
@@ -83,9 +94,32 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $failureResponse->getReasonPhrase()->willReturn("Conflict");
 
         $this->transport->exec($request->reveal())
-            ->willReturn($failureResponse, $failureResponse, $failureResponse);
+            ->willReturn(
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal())
+            );
 
         $this->manager->performRequest($request->reveal());
+    }
+
+    public function testPerformRequestDoNotThrowsExceptionsIfExceptionOptionIsSetToFalse()
+    {
+        $request = $this->prophesize(RequestInterface::class);
+        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+        $failureResponse = $this->prophesize(ResponseInterface::class);
+        $failureResponse->getStatusCode()->willReturn(409);
+        $failureResponse->getReasonPhrase()->willReturn("Conflict");
+
+        $this->transport->exec($request->reveal())
+            ->willReturn(
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal()),
+                new FulfilledPromise($failureResponse->reveal())
+            );
+
+        $response = $this->manager->performRequest($request->reveal(), ['exceptions' => false]);
+        $this->assertSame($failureResponse->reveal(), $response);
     }
 
     public function testPerformRequestDispatchPreRequestEvent()
@@ -95,7 +129,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
-        $this->transport->exec($request->reveal())->willReturn($this->successResponse->reveal());
+        $this->transport->exec($request->reveal())->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $this->manager->performRequest($request->reveal());
     }
@@ -114,7 +148,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
-        $this->transport->exec($secondRequest)->willReturn($this->successResponse->reveal());
+        $this->transport->exec($secondRequest)->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $this->manager->performRequest($request->reveal());
     }
@@ -126,7 +160,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
-        $this->transport->exec($request->reveal())->willReturn($this->successResponse->reveal());
+        $this->transport->exec($request->reveal())->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $this->manager->performRequest($request->reveal());
     }
@@ -146,7 +180,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
         $this->transport->exec($request)
-            ->willReturn($this->successResponse->reveal());
+            ->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $response = $this->manager->performRequest($request->reveal());
         $this->assertSame($alternateResponse, $response);
@@ -169,9 +203,9 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
         $this->transport->exec($request)
-            ->willReturn($failureResponse->reveal());
+            ->willReturn(new FulfilledPromise($failureResponse->reveal()));
         $this->transport->exec($successRequest)
-            ->willReturn($this->successResponse->reveal());
+            ->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $response = $this->manager->performRequest($request->reveal());
         $this->assertSame($this->successResponse->reveal(), $response);
@@ -202,9 +236,9 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
         $this->transport->exec($request)
-            ->willReturn($failureResponse->reveal());
+            ->willReturn(new FulfilledPromise($failureResponse->reveal()));
         $this->transport->exec($successRequest)
-            ->willReturn($this->successResponse->reveal());
+            ->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $response = $this->manager->performRequest($request->reveal());
         $this->assertSame($this->successResponse->reveal(), $response);
@@ -250,7 +284,7 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
 
         $this->transport->exec($request)
             ->shouldBeCalled()
-            ->willReturn($this->successResponse->reveal());
+            ->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $apiManager->performRequest($request);
     }
@@ -275,9 +309,9 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         $request = $this->prophesize(RequestInterface::class);
         $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
         $this->transport->exec($request)
-            ->willReturn($failureResponse->reveal());
+            ->willReturn(new FulfilledPromise($failureResponse->reveal()));
         $this->transport->exec($successRequest)
-            ->willReturn($this->successResponse->reveal());
+            ->willReturn(new FulfilledPromise($this->successResponse->reveal()));
 
         $this->manager->performRequest($request->reveal(), ['tag' => 'example_val']);
     }
@@ -285,22 +319,20 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
     public function testPerformMultipleShouldReturnResponsesInOrder()
     {
         $requests = [];
-        $responses = [];
         for ($i = 0; $i < 5; $i++) {
             $request = $this->prophesize(RequestInterface::class);
             $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+            $requests["a_$i"] = $request->reveal();
 
             $successResponse = $this->prophesize(ResponseInterface::class);
             $successResponse->getStatusCode()->willReturn(200);
 
-            $requests['a_' . $i] = $request->reveal();
-            $responses['a_' . $i] = $successResponse->reveal();
+            $this->transport->exec($request->reveal())
+                ->willReturn(new FulfilledPromise($successResponse->reveal()));
         }
 
-        $this->transport->execMultiple($requests)->willReturn($responses);
-
         $resps = $this->manager->performMultiple($requests);
-        $this->assertEquals(array_keys($responses), array_keys($resps));
+        $this->assertEquals(array_keys($requests), array_keys($resps));
     }
 
     public function testPerformMultipleShouldRetryOnlyFailedRequests()
@@ -310,23 +342,25 @@ class ApiRequestManagerTest extends \PHPUnit_Framework_TestCase
         for ($i = 0; $i < 5; $i++) {
             $request = $this->prophesize(RequestInterface::class);
             $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
+            $requests["a_$i"] = $request->reveal();
 
             $response = $this->prophesize(ResponseInterface::class);
             $response->getStatusCode()->willReturn($i == 3 ? 400 : 200);
+            $response->getReasonPhrase()->willReturn('STATUS');
 
-            $requests['a_' . $i] = $request->reveal();
-            $responses['a_' . $i] = $response->reveal();
+            if (3 != $i) {
+                $this->transport->exec($request->reveal())
+                    ->willReturn(new FulfilledPromise($response->reveal()));
+            } else {
+                $this->transport->exec($request->reveal())
+                    ->willReturn(
+                        new FulfilledPromise($response->reveal()),
+                        new FulfilledPromise($this->successResponse->reveal())
+                    );
+            }
         }
 
-        $this->transport->execMultiple($requests)->willReturn($responses);
-
-        $request = $this->prophesize(RequestInterface::class);
-        $request->getUri()->willReturn(\GuzzleHttp\Psr7\uri_for(''));
-        $this->transport->execMultiple(Argument::that(function($arg) { return array_keys($arg) === ['a_3']; }))
-            ->shouldBeCalledTimes(1)
-            ->willReturn(['a_3' => $this->successResponse->reveal()]);
-
         $resps = $this->manager->performMultiple($requests);
-        $this->assertEquals(array_keys($responses), array_keys($resps));
+        $this->assertEquals(array_keys($requests), array_keys($resps));
     }
 }
