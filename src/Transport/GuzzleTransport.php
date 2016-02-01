@@ -28,17 +28,4 @@ class GuzzleTransport implements TransportInterface
     {
         return $this->client->sendAsync($request);
     }
-
-    /**
-     * @inheritDoc
-     */
-    public function execMultiple($requests)
-    {
-        ksort($requests);
-
-        return array_combine(
-            array_keys($requests),
-            Pool::batch($this->client, $requests, ['concurrency' => 2])
-        );
-    }
 }

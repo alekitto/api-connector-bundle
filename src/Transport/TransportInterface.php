@@ -15,12 +15,4 @@ interface TransportInterface
      * @throws
      */
     public function exec(RequestInterface $request);
-
-    /**
-     * @param RequestInterface[] $requests
-     * @return ResponseInterface[]
-     *
-     * @throws
-     */
-    public function execMultiple($requests);
 }

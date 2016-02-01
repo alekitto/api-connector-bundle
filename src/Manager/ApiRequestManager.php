@@ -89,6 +89,8 @@ class ApiRequestManager
      * @throws BadApiResponseException
      *
      * @return ResponseInterface
+     *
+     * @deprecated Use {@link send()}
      */
     public function performRequest(RequestInterface $request, array $options = [])
     {
@@ -96,8 +98,8 @@ class ApiRequestManager
     }
 
     /**
-     * Perform an asynchronous request (if possible) and return a promise
-     * object (an object implementing then and reject methods)
+     * Perform a request and return a promise object (an object
+     * implementing then method)
      *
      * @param RequestInterface $request
      * @param array $options
@@ -150,6 +152,8 @@ class ApiRequestManager
      * @param array $options
      *
      * @return array
+     *
+     * @deprecated Use {@link send()}
      */
     public function performMultiple($requests, array $options = [])
     {
