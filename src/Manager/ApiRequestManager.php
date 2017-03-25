@@ -120,7 +120,15 @@ class ApiRequestManager
 
                 return $response;
             })
-            ->then(null, function(ResponseEvent $event) use ($options) {
+            ->then(null, function($event) use ($options) {
+                if ($event instanceof \Exception) {
+                    throw $event;
+                }
+
+                if (! $event instanceof ResponseEvent) {
+                    throw new \InvalidArgumentException('Argument 1 passed to closure is not an instance of ResponseEvent');
+                }
+
                 // options is passed by reference. Use array_merge to ensure
                 // opts is a copy and not a reference
                 $opts = array_merge([], $options);
